@@ -68,7 +68,7 @@ mod_data <- mod_data %>%
          scaled_time = (time - mean(time))/10) %>%
   as.data.frame()
 
-mod_data$dog_biomass_log_scaled <- scale(log(mod_data$dog_biomass))
+mod_data$dog_biomass_log_scaled <- scale(log(mod_data$dog_biomass + 1))
 
 #----------------------------------
 ## Make mesh
@@ -92,7 +92,7 @@ fit_wdogs <- sdmTMB(
   anisotropy = F,
   # share_range = TRUE,
   spatiotemporal = "IID",
-  spatial_varying = ~dog_biomass_log_scaled,
+  spatial_varying = ~dog_biomass_log_scaled*scaled_time,
   time = "time",
   # time_varying = ~ 0 + year_season_int,
   # time_varying_type = "ar1",
@@ -104,5 +104,8 @@ fit_wdogs <- sdmTMB(
 
 sanity(fit_wdogs)
 fit_wdogs
+tidy(fit_wdogs, effects = "ran_pars")
+
+ggeffects::ggpredict(fit_wdogs, terms = "scaled_time")
 
 saveRDS(fit_wdogs, paste0(proj_box_path, "Predator_prey/Github_LFS/Fitted_Mods/mac_fit_wdogs.rds"))
