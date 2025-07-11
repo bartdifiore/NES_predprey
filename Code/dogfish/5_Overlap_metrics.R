@@ -205,6 +205,26 @@ df_overlap3 <- df_overlap %>%
   st_set_crs(4326) %>%
   st_join(grid.1)
 
+
+
+prediction_grid2 <- readRDS(here::here("Data/Derived/pred_glorys_with_covs.rds")) %>%
+  # select(-c(BT_seasonal, SST_seasonal)) %>%
+  filter(year %in% year_filt) %>%
+  rename(longitude = x, latitude = y) %>%
+  mutate(time = as.numeric(case_when(season == "Spring" ~ paste(year, "25", sep = "."), 
+                                     season == "Summer" ~ paste(year, "50", sep = "."), 
+                                     season == "Fall" ~ paste(year, "75", sep = "."))), 
+         scaled_time = (time - mean(time))/10) %>% 
+  filter(Depth < 400) %>% 
+  select(-Depth, -Year_Season) %>%
+  sf::st_as_sf(coords = c("longitude", "latitude")) %>% 
+  st_set_crs(4326) %>% 
+  st_join(grid.1) %>%
+  st_drop_geometry() %>%
+  group_by(cell_id, time, season, year) %>% 
+  summarize(mean_btemp = mean(BT_seasonal, na.rm = T), 
+            mean_sstemp = mean(SST_seasonal, na.rm = T))
+
 # Estimate the metrics
 
 overlaps_1deg <- df_overlap3 %>% 
@@ -231,8 +251,26 @@ out_1_deg <- overlaps_1deg %>%
             bhatta = bhatta_coeffn(l_res, p_res), 
             AB = AB_overlapfn(l_res, p_res)) %>%
   pivot_longer(cols = c(area_overlap:AB), names_to = "overlap_metric", values_to = "value" ) %>%
+  left_join(prediction_grid2)%>%
   left_join(grid.1)
 
 summary(out_1_deg)
 
 write_rds(out_1_deg, "Data/Derived/overlap_metrics_1deg.rds")  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
