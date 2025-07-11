@@ -53,16 +53,80 @@ df_overlap <- pred_yhat %>%
   arrange(season, year, time, Date, longitude, latitude) %>%
   ungroup() %>%
   mutate(id = 1:n()) %>%
-  select(id, season, year, est, longitude, latitude) %>%
+  select(id, season, year, time, est, longitude, latitude) %>%
   rename(predator_est = est) %>%
   st_drop_geometry() %>%
   left_join(mac_yhat %>% 
               arrange(season, year, time, Date, longitude, latitude) %>%
               ungroup() %>%
               mutate(id = 1:n()) %>%
-              select(id,season, year, est, longitude, latitude) %>%
+              select(id,season, year, time, est, longitude, latitude) %>%
               rename(prey_est = est) %>%
-              st_drop_geometry)
+              st_drop_geometry) #%>% 
+  # mutate(temp = paste(latitude, longitude, sep = "_")) %>% 
+  # group_by(temp) %>% 
+  # mutate(id = 1:n())
+
+#coords <- unique(df_overlap$temp)
+
+# grid <- data.frame(temp = coords) %>% 
+#   separate(temp, into = c("latitude", "longitude"), sep = "_") %>% 
+#   mutate(id = 1:n())%>%
+#   sf::st_as_sf(coords = c("longitude", "latitude")) %>% 
+#   st_set_crs(4326) %>%
+#   st_buffer(dist = 1/12)
+
+#-------------------------------------------------------
+## Visualize overlaps using RBG mapping technique
+#-------------------------------------------------------
+
+library(dplyr)
+library(ggplot2)
+library(sf)
+library(scales)
+
+
+# Step 1: Rescale within each year
+
+df_scaled <- df_overlap %>%
+  mutate(
+    # Option 1: rescale 0–1 for visualization
+    predator_scaled = rescale(predator_est),
+    prey_scaled     = rescale(prey_est),
+    rgb_scaled = rgb(red = predator_scaled, green = 0, blue = prey_scaled), 
+    # rgb_scaled = rgb(red = predator_scaled, green = prey_scaled, blue = 0), 
+    decade = floor(time/10)*10)
+  # ) %>%
+  # left_join(grid) %>% 
+  # st_as_sf()
+
+
+region <- ne_countries(scale = "medium", continent = "North America", returnclass = "sf")
+states <- ne_states(country = c("United States of America", "Canada"), returnclass = "sf")
+
+lat_lims <- c(35.2, 48)
+lon_lims<- c(-76, -56.2)
+
+# Step 2: Plot as raster with layering over time
+
+out <- ggplot(df_scaled) +
+  geom_tile(aes(fill = rgb_scaled, x = longitude, y = latitude), alpha = 0.95) +  # NOTE: geom_tile() also works
+  geom_sf(data = region, fill = "#f0f0f0") +
+  geom_sf(data = states, color = "dark gray", lwd = 0.2, na.rm = TRUE) +
+  coord_sf(xlim = lon_lims, ylim = lat_lims, expand = FALSE) +
+  scale_fill_identity() +
+  # coord_fixed() +
+  labs(
+    title = "Cumulative Overlap of Dogfish (Red) and Mackerel (Blue)",
+    subtitle = "Purple = persistent overlap; alpha layering across years", x = "", y = ""
+  ) +
+  facet_wrap(~decade)+
+  theme_minimal()
+
+ggsave("Figures/dogfish_mackerel_rbgoverlap.png", out)
+
+
+
 
 #------------------------------------------------------------------------------
 ## Estimate overlap metrics for each cell (e.g. do not integrate across space)

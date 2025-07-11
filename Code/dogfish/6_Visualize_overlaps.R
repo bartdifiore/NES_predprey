@@ -143,6 +143,7 @@ cowplot::plot_grid(out[[1]], out[[2]], out[[3]], out[[4]],
                    out[[5]], out[[6]], out[[7]])
 ggsave("Figures/Temporaltrends_in_overlap.png")  
 
+ggsave("Figures/Temporaltrends_schoenersD.png", out[[5]])
 
 
 forplot %>% 
